@@ -5,16 +5,24 @@ from src.utilities import logger
 
 
 class DataValidationSchema(pa.DataFrameModel):
-    person_age: float = pa.Field(ge=18, le=100)
-    person_gender: str = pa.Field(isin=["male", "female"])
+    person_age: float = pa.Field(ge=18, le=80, description="Age of the person")
+    person_gender: str = pa.Field(
+        isin=["male", "female"], description="Gender of the person"
+    )
     person_education: str = pa.Field(
         isin=["high school", "doctorate", "associate", "bachelor", "master"],
-        raise_warning=False,
+        description="Highest education level",
     )
-    person_income: float = pa.Field(ge=5_000, le=10_000_000)
-    person_emp_exp: int = pa.Field(ge=0, le=50)
-    person_home_ownership: str = pa.Field(isin=["other", "mortgage", "rent", "own"])
-    loan_amnt: float = pa.Field(ge=500, le=50_000)
+    person_income: float = pa.Field(
+        ge=5_000, le=10_000_000, description="Annual income"
+    )
+    person_emp_exp: int = pa.Field(
+        ge=0, le=50, description="Years of employment experience"
+    )
+    person_home_ownership: str = pa.Field(
+        isin=["other", "mortgage", "rent", "own"], description="Home ownership status"
+    )
+    loan_amnt: float = pa.Field(ge=500, le=50_000, description="Loan amount requested")
     loan_intent: str = pa.Field(
         isin=[
             "education",
@@ -24,14 +32,24 @@ class DataValidationSchema(pa.DataFrameModel):
             "personal",
             "home improvement",
         ],
-        raise_warning=False,
+        description="Purpose of the loan",
     )
-    loan_int_rate: float = pa.Field(ge=1.0, le=30.0)
-    loan_percent_income: float = pa.Field(ge=0.0, le=1.0)
-    cb_person_cred_hist_length: float = pa.Field(ge=0.0, le=40.0)
-    credit_score: int = pa.Field(ge=300, le=850)
-    previous_loan_defaults_on_file: str = pa.Field(isin=["yes", "no"])
-    loan_status: int = pa.Field(ge=0, le=1)
+    loan_int_rate: float = pa.Field(ge=1.0, le=30.0, description="Loan interest rate")
+    loan_percent_income: float = pa.Field(
+        ge=0.0, le=1.0, description="Loan amount as a percentage of annual income"
+    )
+    cb_person_cred_hist_length: float = pa.Field(
+        ge=0.0, le=40.0, description="Length of credit history"
+    )
+    credit_score: int = pa.Field(
+        ge=300, le=850, description="Credit score of the person"
+    )
+    previous_loan_defaults_on_file: str = pa.Field(
+        isin=["yes", "no"], description="Indicator of previous loan defaults"
+    )
+    loan_status: int = pa.Field(
+        ge=0, le=1, description="Loan approval status: 1 = approved; 0 = rejected"
+    )
 
 
 def validate_loan_data(data: pl.LazyFrame) -> pl.LazyFrame | None:

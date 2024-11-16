@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+import numpy as np
+import polars as pl
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
@@ -8,6 +10,7 @@ from rich.text import Text
 from rich.table import Table
 from rich import box
 from rich.theme import Theme
+from sklearn.pipeline import Pipeline
 from typeguard import typechecked
 
 
@@ -51,6 +54,7 @@ custom_theme = Theme(
 console = Console(theme=custom_theme)
 
 
+@typechecked
 def fancy_print(
     object: Any,
     title: str = "Result",
@@ -92,3 +96,29 @@ def fancy_print(
     else:
         console.print(panel)
         return None
+
+
+@typechecked
+def transform_array_to_lazyframe(
+    array: np.ndarray, processor_pipe: Pipeline
+) -> pl.LazyFrame:
+    """Transform a numpy array using a scikit-learn Pipeline and convert to a
+    Polars LazyFrame.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        Input array of shape (n_samples, n_features)
+    processor_pipe : Pipeline
+        Fitted scikit-learn Pipeline for data transformation
+
+    Returns
+    -------
+    pl.LazyFrame
+        Transformed data as a Polars LazyFrame with feature names from the pipeline
+    """
+    array = processor_pipe.transform(array)
+    data: pl.LazyFrame = pl.LazyFrame(
+        array, schema=processor_pipe.get_feature_names_out()
+    )
+    return data

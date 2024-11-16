@@ -23,7 +23,7 @@ Machine Learning-Powered Loan Processing and Credit Scoring
 
 1. Creditworthiness scoring: Predictive modeling for informed lending decisions.
 2. Loan application processing: Automated risk assessment and approval.
-3. Loan ammount estimation: Accurate loan amount estimation.
+3. Loan amount estimation: Accurate loan amount estimation.
 4. Loan term and rate estimation: Accurate loan term and rate estimation.
 5. Customer segmentation: Data-driven targeting for enhanced customer experiences.
 
