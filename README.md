@@ -75,6 +75,13 @@ uv sync
 uv lock
 ```
 
+- Install `pre-commit` hooks:
+
+```sh
+uv add pre-commit
+pre-commit install
+```
+
 ## ZenML Integrations
 
 ### Useful Commands
@@ -128,5 +135,5 @@ zenml experiment-tracker register mlflow \
 HOST="127.0.0.1"
 PORT="5000"
 
-mlflow server --host ${HOST} --port ${PORT} 
+mlflow server --host ${HOST} --port ${PORT}
 ```
