@@ -1,7 +1,9 @@
 from datetime import datetime as dt
+from typing import Any
 
 import numpy as np
 from omegaconf import DictConfig
+import pandas as pd
 import polars as pl
 from polars import selectors as cs
 from pydantic import BaseModel, Field
@@ -183,7 +185,7 @@ class ScikitLearnPipeline(BaseModel):
         Timestamp indicating when the pipeline was created.
     """
 
-    pipeline: Pipeline
+    pipe: Pipeline
     parameters: dict[str, str | int | float] | None = None
     created_at: str | dt = Field(
         default_factory=lambda: dt.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -197,6 +199,83 @@ class ScikitLearnPipeline(BaseModel):
                 "parameters": pipe.get_params(),
             }
         }
+
+
+@typechecked
+def _get_datatrame_metadata(data: pl.DataFrame | pd.DataFrame) -> dict[str, Any]:
+    """Get metadata information from a DataFrame.
+
+    This function extracts metadata information from a Polars or Pandas DataFrame,
+    including shape, columns, and summary statistics.
+
+    Parameters
+    ----------
+    data : pl.DataFrame | pd.DataFrame
+        Input DataFrame of shape (n_rows, n_columns)
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary containing DataFrame metadata with keys:
+        - shape: dict with n_rows and n_columns
+        - columns: list of column names
+        - summary_stats: descriptive statistics
+    """
+    if isinstance(data, pd.DataFrame):
+        data = pl.from_pandas(data)
+    return {
+        "shape": {"n_rows": data.shape[0], "n_columns": data.shape[1]},
+        "columns": data.columns,
+        "summary_stats": data.describe().to_dicts(),
+    }
+
+
+@typechecked
+def _get_sklearn_pipeline_metadata(pipe: Pipeline) -> dict[str, Any]:
+    """Get metadata information from a scikit-learn Pipeline.
+
+    This function extracts metadata information from a scikit-learn Pipeline
+    by converting it to a ScikitLearnPipeline object.
+
+    Parameters
+    ----------
+    pipe : Pipeline
+        Input scikit-learn Pipeline object containing preprocessing/modeling steps
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary containing Pipeline metadata including steps, parameters,
+        and creation timestamp
+    """
+    if isinstance(pipe, Pipeline):
+        pipe_: ScikitLearnPipeline = ScikitLearnPipeline(pipe=pipe)
+    return {"output": pipe_.model_dump()}
+
+
+@typechecked
+def get_metadata(input: pl.DataFrame | pd.DataFrame) -> dict[str, Any]:
+    """Get metadata information from DataFrame or Pipeline objects.
+
+    This function serves as a dispatcher to get metadata from either
+    DataFrame objects or scikit-learn Pipeline objects.
+
+    Parameters
+    ----------
+    input : pl.DataFrame | pd.DataFrame | Pipeline
+        Input object to extract metadata from. Can be either:
+        - DataFrame of shape (n_rows, n_columns)
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary containing metadata specific to the input object type
+    """
+    if isinstance(input, pd.DataFrame | pl.DataFrame):
+        return _get_datatrame_metadata(data=input)
+    raise TypeError(
+        f"Input must be a pandas or polars DataFrame, got {type(input).__name__} instead"
+    )
 
 
 @typechecked
