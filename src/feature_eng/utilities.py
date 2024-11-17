@@ -4,22 +4,33 @@ from typeguard import typechecked
 
 
 @typechecked
-def drop_invalid_values(data: pl.LazyFrame, threshold: float = 75.0) -> pl.LazyFrame:
-    """Filter out rows where person_age exceeds the specified threshold.
+def drop_invalid_values(
+    data: pl.LazyFrame,
+    column: str,
+    lower_threshold: float = 18.0,
+    upper_threshold: float = 75.0,
+) -> pl.LazyFrame:
+    """Filter out invalid values from a LazyFrame based on specified thresholds.
 
     Parameters
     ----------
     data : pl.LazyFrame
-        Input LazyFrame conßtaining person_age column.
-    threshold : float, default=75.0
-        Maximum allowed age value.
+        Input LazyFrame containing the column to be filtered.
+    column : str
+        Name of the column to apply filtering.
+    lower_threshold : float, default=18.0
+        Lower threshold value for filtering.
+    upper_threshold : float, default=75.0
+        Upper threshold value for filtering.
 
     Returns
     -------
     pl.LazyFrame
-        Filtered LazyFrame containing only rows where person_age <= threshold.
+        LazyFrame with filtered values in the specified column.
     """
-    data = data.filter(pl.col("person_age").le(threshold))
+    data = data.filter(
+        (pl.col(column).ge(lower_threshold) | pl.col(column).le(upper_threshold))
+    )
     return data
 
 
