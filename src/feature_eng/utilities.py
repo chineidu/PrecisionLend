@@ -1,6 +1,21 @@
+from datetime import datetime as dt
+
+import numpy as np
+from omegaconf import DictConfig
 import polars as pl
 from polars import selectors as cs
+from pydantic import BaseModel, Field
+from sklearn.pipeline import Pipeline
 from typeguard import typechecked
+
+from src.data_eng.transformations import (
+    convert_values_to_lowercase,
+    rename_loan_intent_values,
+)
+from src.utilities import load_config
+
+
+CONFIG: DictConfig = load_config()
 
 
 @typechecked
@@ -94,11 +109,94 @@ def get_unique_values(data: pl.LazyFrame) -> dict[str, list[str]]:
     """
     result: dict[str, list[str]] = {}
 
-    str_cols: list[str] = data.select(cs.string()).columns
+    str_cols: list[str] = data.select(cs.string()).collect_schema().names()
     for col in str_cols:
         result[col] = data.select(col).unique().collect().to_numpy().flatten().tolist()
 
     return result
+
+
+@typechecked
+def clean_training_data(data: pl.LazyFrame) -> pl.LazyFrame:
+    """Clean and preprocess training data by applying various transformations.
+
+    Parameters
+    ----------
+    data : pl.LazyFrame
+        Input LazyFrame containing the training data.
+
+    Returns
+    -------
+    pl.LazyFrame
+        Cleaned and preprocessed LazyFrame with transformed values.
+    """
+    lf_data: pl.LazyFrame = convert_values_to_lowercase(data=data)
+    lf_data = rename_loan_intent_values(data=lf_data)
+    lf_data = drop_invalid_values(
+        data=lf_data,
+        column=CONFIG.credit_score.steps_features.age_col,
+        lower_threshold=CONFIG.credit_score.steps_features.lower_bound,
+        upper_threshold=CONFIG.credit_score.steps_features.upper_bound,
+    )
+    return lf_data
+
+
+@typechecked
+def transform_array_to_lazyframe(
+    array: np.ndarray, processor_pipe: Pipeline
+) -> pl.LazyFrame:
+    """Transform a NumPy array into a Polars LazyFrame using a scikit-learn Pipeline.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        Input array of shape (n_samples, n_features) containing the processed features.
+    processor_pipe : Pipeline
+        Scikit-learn Pipeline object that was used to process the data and contains
+        feature names information.
+
+    Returns
+    -------
+    pl.LazyFrame
+        A Polars LazyFrame containing the transformed data with feature names from
+        the pipeline.
+    """
+    data: pl.LazyFrame = pl.from_numpy(
+        array, schema=processor_pipe.get_feature_names_out().tolist()
+    ).lazy()
+    return data
+
+
+class ScikitLearnPipeline(BaseModel):
+    """A Pydantic model for scikit-learn Pipeline objects.
+
+    This class wraps a scikit-learn Pipeline object and provides JSON serialization
+    capabilities. It stores the pipeline, its parameters, and creation timestamp.
+
+    Attributes
+    ----------
+    pipeline : Pipeline
+        The scikit-learn Pipeline object containing the preprocessing/modeling steps.
+    parameters : dict[str, str | int | float] | None
+        Optional dictionary of pipeline parameters with their values.
+    created_at : str | datetime
+        Timestamp indicating when the pipeline was created.
+    """
+
+    pipeline: Pipeline
+    parameters: dict[str, str | int | float] | None = None
+    created_at: str | dt = Field(
+        default_factory=lambda: dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            Pipeline: lambda pipe: {
+                "steps": [(name, str(estimator)) for name, estimator in pipe.steps],
+                "parameters": pipe.get_params(),
+            }
+        }
 
 
 @typechecked

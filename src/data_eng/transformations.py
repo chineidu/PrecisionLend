@@ -19,7 +19,7 @@ def convert_values_to_lowercase(data: pl.LazyFrame) -> pl.LazyFrame:
     pl.LazyFrame
         LazyFrame with all string values converted to lowercase.
     """
-    str_cols: list[str] = data.select(cs.string()).columns
+    str_cols: list[str] = data.select(cs.string()).collect_schema().names()
 
     for col in str_cols:
         data = data.with_columns(pl.col(col).str.to_lowercase().alias(col))
@@ -52,7 +52,7 @@ def rename_loan_intent_values(data: pl.LazyFrame) -> pl.LazyFrame:
     }
     data = data.with_columns(
         pl.col("loan_intent")
-        .map_elements(lambda x: loan_intent_mapper.get(x))
+        .map_elements(lambda x: loan_intent_mapper.get(x), return_dtype=str)
         .alias("loan_intent")
     )
     return data

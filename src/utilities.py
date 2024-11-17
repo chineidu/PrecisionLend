@@ -1,8 +1,8 @@
 import logging
+from pathlib import Path
 from typing import Any
 
-import numpy as np
-import polars as pl
+from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
@@ -10,8 +10,22 @@ from rich.text import Text
 from rich.table import Table
 from rich import box
 from rich.theme import Theme
-from sklearn.pipeline import Pipeline
 from typeguard import typechecked
+
+
+root: Path = Path(__file__).parent.parent
+custom_theme = Theme(
+    {
+        "white": "#FFFFFF",  # Bright white
+        "info": "#00FF00",  # Bright green
+        "warning": "#FFD700",  # Bright gold
+        "error": "#FF1493",  # Deep pink
+        "success": "#00FFFF",  # Cyan
+        "highlight": "#FF4500",  # Orange-red
+    }
+)
+
+console = Console(theme=custom_theme)
 
 
 @typechecked
@@ -39,19 +53,20 @@ def get_rich_logger(name: str | None = "richLogger") -> logging.Logger:
     return logger
 
 
-logger = get_rich_logger()
-custom_theme = Theme(
-    {
-        "white": "#FFFFFF",  # Bright white
-        "info": "#00FF00",  # Bright green
-        "warning": "#FFD700",  # Bright gold
-        "error": "#FF1493",  # Deep pink
-        "success": "#00FFFF",  # Cyan
-        "highlight": "#FF4500",  # Orange-red
-    }
-)
+@typechecked
+def load_config() -> DictConfig:
+    """Load a Hydra configuration from a YAML file.
 
-console = Console(theme=custom_theme)
+    Returns
+    -------
+    DictConfig
+        The loaded configuration object containing all settings
+        from the YAML file.
+    """
+    config_path: Path = root / "config.yaml"
+    config: DictConfig = OmegaConf.load(config_path)
+
+    return config
 
 
 @typechecked
@@ -98,27 +113,4 @@ def fancy_print(
         return None
 
 
-@typechecked
-def transform_array_to_lazyframe(
-    array: np.ndarray, processor_pipe: Pipeline
-) -> pl.LazyFrame:
-    """Transform a numpy array using a scikit-learn Pipeline and convert to a
-    Polars LazyFrame.
-
-    Parameters
-    ----------
-    array : np.ndarray
-        Input array of shape (n_samples, n_features)
-    processor_pipe : Pipeline
-        Fitted scikit-learn Pipeline for data transformation
-
-    Returns
-    -------
-    pl.LazyFrame
-        Transformed data as a Polars LazyFrame with feature names from the pipeline
-    """
-    array = processor_pipe.transform(array)
-    data: pl.LazyFrame = pl.LazyFrame(
-        array, schema=processor_pipe.get_feature_names_out()
-    )
-    return data
+logger = get_rich_logger()
