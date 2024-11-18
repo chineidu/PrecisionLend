@@ -14,9 +14,13 @@ Machine Learning-Powered Loan Processing and Credit Scoring
   - [ZenML Integrations](#zenml-integrations)
     - [Useful Commands](#useful-commands)
     - [MLFlow Integration](#mlflow-integration)
-    - [Get MLFlow Tracking URL](#get-mlflow-tracking-url)
+      - [Get MLFlow Tracking URL](#get-mlflow-tracking-url)
+      - [Configure MLFLOW Tracking In Steps And Pipelines](#configure-mlflow-tracking-in-steps-and-pipelines)
+        - [A.) Steps](#a-steps)
+        - [B.) Pipelines](#b-pipelines)
+          - [1.) Run ZenML with MLFlow Docker Integration](#1-run-zenml-with-mlflow-docker-integration)
+          - [2.) Run ZenML with A Connected MLFlow Server](#2-run-zenml-with-a-connected-mlflow-server)
     - [ZenML Stack CLI Commands](#zenml-stack-cli-commands)
-    - [Create ZenML Secret](#create-zenml-secret)
 
 ## Overview
 
@@ -116,38 +120,48 @@ zenml show
 # Add MLFlow to your stack
 zenml integration install mlflow -y
 
-# Register the MLFlow experiment tracker
-zenml experiment-tracker register mlflow_experiment_tracker --flavor=mlflow
+# List all stacks
+zenml stack list
 
 # Register and set a stack with the new experiment tracker
-STACK_NAME=custom_stack
-EXPERIMENT_TRACKER_NAME=mlflow
-zenml stack register $STACK_NAME -a default -o default \
-  -e $EXPERIMENT_TRACKER_NAME --set
+# 1. Create a secret
+SECRET_NAME=mlflow_secret
+USERNAME=your_username
+PASSWORD=your_password
+URI=http://localhost:5000
 
-# Authentication Methods
-# Create a secret called `mlflow_secret` with key-value pairs for the
-# username and password to authenticate with the MLflow tracking server
-zenml secret create <mlflow_secret_name> \
-    --username=<USERNAME> \
-    --password=<PASSWORD>
+zenml secret create ${SECRET_NAME} \
+    --username=${USERNAME} \
+    --password=${PASSWORD}
 
-# Reference the username and password in our experiment tracker component
+# 2. Create an experiment tracker component.
+# Reference the username, password and uri in the experiment tracker component
 zenml experiment-tracker register ${EXPERIMENT_TRACKER_NAME} \
     --flavor=mlflow \
     --tracking_username={{mlflow_secret.username}} \
     --tracking_password={{mlflow_secret.password}} \
-    ...
+    --tracking_uri={{mlflow_secret.uri}}
+
+# 3. Register and set the new stack and its components
+STACK_NAME=custom_stack
+EXPERIMENT_TRACKER_NAME=mlflow
+zenml stack register ${STACK_NAME} \
+  -a default -o default \
+  -e ${EXPERIMENT_TRACKER_NAME} --set
 
 
-# Start the MLFlow server locally
-HOST="127.0.0.1"
-PORT="5000"
+# 4. Start the MLFlow server locally
+HOST=0.0.0.0
+PORT=5000
+BACKEND_STORE_URI=sqlite:///mlflow.db
 
-mlflow server --host ${HOST} --port ${PORT}
+mlflow server \
+  --backend-store-uri ${BACKEND_STORE_URI} \
+  --host ${HOST} \
+  --port ${PORT}
 ```
 
-### Get MLFlow Tracking URL
+#### Get MLFlow Tracking URL
 
 ```py
 from zenml.client import Client
@@ -165,57 +179,222 @@ tracking_uri=<value_from_previous_step>
 mlflow ui --backend-store-uri ${tracking_uri}
 ```
 
+#### Configure MLFLOW Tracking In Steps And Pipelines
+
+##### A.) Steps
+
+```py
+from typing import Annotated
+
+from omegaconf import DictConfig
+import polars as pl
+from sklearn.base import ClassifierMixin
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from zenml import step, log_artifact_metadata
+from zenml.integrations.polars.materializers import PolarsMaterializer
+from zenml.integrations.sklearn.materializers import SklearnMaterializer
+import mlflow
+from zenml.client import Client
+from zenml.integrations.mlflow.experiment_trackers import MLFlowExperimentTracker
+
+from src.utilities import logger, load_config
+from src.feature_eng.utilities import  transform_array_to_dataframe
+
+
+
+experiment_tracker = Client().active_stack.experiment_tracker
+if not experiment_tracker or not isinstance(
+    experiment_tracker, MLFlowExperimentTracker
+):
+    raise RuntimeError(
+        "Your active stack needs to contain a MLFlow experiment tracker for"
+        " this to work."
+    )
+CONFIG: DictConfig = load_config()
+
+
+
+@step(
+    output_materializers={
+        "features_df": PolarsMaterializer,
+        "pipe": SklearnMaterializer,
+    }
+)
+def create_training_features(
+    data: pl.DataFrame, pipe: Pipeline
+) -> tuple[Annotated[pl.DataFrame, "features_df"], Annotated[Pipeline, "pipe"]]:
+    """Create training features by transforming input data using preprocessing pipeline.
+
+    Parameters
+    ----------
+    data : pl.DataFrame
+        Input DataFrame to be transformed.
+    pipe : Pipeline
+        Scikit-learn preprocessing pipeline.
+
+    Returns
+    -------
+    tuple[pl.DataFrame, Pipeline]
+        A tuple containing:
+        - features_df: Transformed data as a Polars DataFrame
+        - pipe: Fitted preprocessing pipeline
+
+    Notes
+    -----
+    The transformed array shape depends on the preprocessing steps in the pipeline.
+    """
+    try:
+        logger.info("Creating training features")
+        arr_matrix: np.ndarray = pipe.fit_transform(data.to_pandas())
+        features_df: pl.DataFrame = transform_array_to_dataframe(
+            array=arr_matrix, processor_pipe=pipe
+        )
+        log_artifact_metadata(
+            artifact_name="cleaned_data",
+            metadata={
+                "shape": {
+                    "n_rows": features_df.shape[0],
+                    "n_columns": features_df.shape[1],
+                },
+                "columns": features_df.columns,
+            },
+        )
+        log_artifact_metadata(
+            artifact_name="pipe", metadata={"parameters": str(pipe.get_params())}
+        )
+        return (features_df, pipe)
+
+    except Exception as e:
+        logger.error(f"Error creating training features: {e}")
+        raise e
+
+# Add MLFlow tracking to the step
+@step(experiment_tracker=experiment_tracker.name)
+def train_model(data: pl.DataFrame) -> ClassifierMixin:
+    target: str = CONFIG.credit_score.features.target
+
+    data: pd.DataFrame = data.to_pandas()  # type: ignore
+    X_train: pd.DataFrame = data.drop(columns=[target])
+    y_train: pd.Series = data[target]
+    model: ClassifierMixin = LogisticRegression()
+    mlflow.sklearn.autolog()
+
+    logger.info("Training model")
+    model.fit(X_train, y_train)
+    return model
+
+```
+
+##### B.) Pipelines
+
+###### 1.) Run ZenML with MLFlow Docker Integration
+
+```py
+from typing import Annotated, Any
+
+from omegaconf import DictConfig
+import polars as pl
+from sklearn.base import ClassifierMixin
+from sklearn.pipeline import Pipeline
+from zenml import pipeline
+from zenml.config import DockerSettings
+from zenml.integrations.constants import MLFLOW, SKLEARN
+
+from steps.credit_score import (
+    load_training_processor,
+    prepare_data,
+    create_training_features,
+    load_data,
+    train_model,
+)
+from src.utilities import load_config, logger
+
+# Requirements installation order:
+# Depending on the configuration of this object, requirements will be installed in the following order (each step optional):
+
+# 1.) The packages installed in your local python environment
+# 2.) The packages required by the stack unless this is disabled by setting install_stack_requirements=False.
+# 3.) The packages specified via the required_integrations
+# 4.) The packages specified via the requirements attribute
+docker_settings: DockerSettings = DockerSettings(
+    # List of ZenML integrations that should be installed inside the Docker image.
+    required_integrations=[MLFLOW, SKLEARN],
+    # Path to a requirements file or a list of required pip packages
+    requirements=["scikit-image"]
+)
+
+CONFIG: DictConfig = load_config()
+
+# Define the pipeline to run with Docker
+@pipeline(enable_cache=False, settings={"docker": docker_settings})
+def credit_pipeline() -> (
+    tuple[Annotated[ClassifierMixin, "trained_model"], Annotated[Any, "pipe"]]
+):
+    try:
+        logger.info("Running credit score pipeline")
+        data: pl.LazyFrame = load_data(path=CONFIG.credit_score.data.path)
+        cleaned_data: pl.LazyFrame = prepare_data(data=data)
+        pipe: Pipeline = load_training_processor()
+        features_df, pipe = create_training_features(data=cleaned_data, pipe=pipe)
+        trained_model = train_model(data=features_df)
+        return trained_model, pipe
+
+    except Exception as e:
+        logger.error(f"Error running credit score pipeline: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    run = credit_pipeline()
+```
+
+###### 2.) Run ZenML with A Connected MLFlow Server
+
+```py
+from typing import Annotated, Any
+
+from omegaconf import DictConfig
+import polars as pl
+from sklearn.base import ClassifierMixin
+from sklearn.pipeline import Pipeline
+from zenml import pipeline
+
+from steps.credit_score import (
+    load_training_processor,
+    prepare_data,
+    create_training_features,
+    load_data,
+    train_model,
+)
+from src.utilities import load_config, logger
+
+
+CONFIG: DictConfig = load_config()
+
+# Define the pipeline to run WITHOUT Docker
+@pipeline(enable_cache=False)
+def credit_pipeline() -> (
+    tuple[Annotated[ClassifierMixin, "trained_model"], Annotated[Any, "pipe"]]
+):
+    try:
+        logger.info("Running credit score pipeline")
+        data: pl.LazyFrame = load_data(path=CONFIG.credit_score.data.path)
+        cleaned_data: pl.LazyFrame = prepare_data(data=data)
+        pipe: Pipeline = load_training_processor()
+        features_df, pipe = create_training_features(data=cleaned_data, pipe=pipe)
+        trained_model = train_model(data=features_df)
+        return trained_model, pipe
+
+    except Exception as e:
+        logger.error(f"Error running credit score pipeline: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    run = credit_pipeline()
+```
+
 ### ZenML Stack CLI Commands
 
-- To display the help message for the `zenml stack register --help` command:
-
-```txt
-Options:
-  -a, --artifact-store TEXT       Name of the artifact store for this stack.
-  -o, --orchestrator TEXT         Name of the orchestrator for this stack.
-  -c, --container_registry TEXT   Name of the container registry for this
-                                  stack.
-  -r, --model_registry TEXT       Name of the model registry for this stack.
-  -s, --step_operator TEXT        Name of the step operator for this stack.
-  -f, --feature_store TEXT        Name of the feature store for this stack.
-  -d, --model_deployer TEXT       Name of the model deployer for this stack.
-  -e, --experiment_tracker TEXT   Name of the experiment tracker for this
-                                  stack.
-  -al, --alerter TEXT             Name of the alerter for this stack.
-  -an, --annotator TEXT           Name of the annotator for this stack.
-  -dv, --data_validator TEXT      Name of the data validator for this stack.
-  -i, --image_builder TEXT        Name of the image builder for this stack.
-  --set                           Immediately set this stack as active.
-  -p, --provider [aws|azure|gcp]  Name of the cloud provider for this stack.
-  -sc, --connector TEXT           Name of the service connector for this
-```
-
-- e.g.
-
-```sh
-# Register and set a stack with the new experiment tracker
-STACK_NAME=custom_stack
-
-zenml stack register ${STACK_NAME} \  # name of the stack
--a default \ # name of the artifact store
--o default \ # name of the orchestrator
--e ${STACK_NAME} --set  \ # set the stack using the STACK_NAME variable
-```
-
-### Create ZenML Secret
-
-- Create a secret called `mlflow_secret` with key-value pairs for the username and password to authenticate with the MLflow tracking server.
-
-```sh
-zenml secret create <mlflow_secret_name> \
-    --username=default \
-    --password=password \
-    --uri=<path_to_mlflow_uri>
-
-# Reference the username and password in our experiment tracker component
-zenml experiment-tracker register <mlflow_experiment_tracker_name> \
-    --flavor=mlflow \
-    --tracking_username={{mlflow_secret.username}} \
-    --tracking_password={{mlflow_secret.password}} \
-    --tracking_uri={{mlflow_secret.uri}}
-```
+- To display the help message for the `zenml stack --help` command:

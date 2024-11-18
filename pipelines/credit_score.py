@@ -24,7 +24,8 @@ docker_settings: DockerSettings = DockerSettings(
 CONFIG: DictConfig = load_config()
 
 
-@pipeline(enable_cache=False, settings={"docker": docker_settings})
+# @pipeline(enable_cache=False, settings={"docker": docker_settings})
+@pipeline(enable_cache=False)
 def credit_pipeline() -> (
     tuple[Annotated[ClassifierMixin, "trained_model"], Annotated[Any, "pipe"]]
 ):
