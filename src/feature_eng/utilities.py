@@ -46,7 +46,7 @@ def drop_invalid_values(
         LazyFrame with filtered values in the specified column.
     """
     data = data.filter(
-        (pl.col(column).ge(lower_threshold) | pl.col(column).le(upper_threshold))
+        (pl.col(column).ge(lower_threshold) & pl.col(column).le(upper_threshold))
     )
     return data
 
@@ -144,10 +144,10 @@ def clean_training_data(data: pl.LazyFrame) -> pl.LazyFrame:
 
 
 @typechecked
-def transform_array_to_lazyframe(
+def transform_array_to_dataframe(
     array: np.ndarray, processor_pipe: Pipeline
-) -> pl.LazyFrame:
-    """Transform a NumPy array into a Polars LazyFrame using a scikit-learn Pipeline.
+) -> pl.DataFrame:
+    """Transform a NumPy array into a Polars DataFrame using a scikit-learn Pipeline.
 
     Parameters
     ----------
@@ -159,13 +159,16 @@ def transform_array_to_lazyframe(
 
     Returns
     -------
-    pl.LazyFrame
-        A Polars LazyFrame containing the transformed data with feature names from
+    pl.DataFrame
+        A Polars DataFrame containing the transformed data with feature names from
         the pipeline.
     """
-    data: pl.LazyFrame = pl.from_numpy(
+    data: pl.DataFrame = pl.from_numpy(
         array, schema=processor_pipe.get_feature_names_out().tolist()
-    ).lazy()
+    )
+    if "remainder__loan_status" in data.columns:
+        data = data.rename({"remainder__loan_status": "loan_status"})
+        return data
     return data
 
 

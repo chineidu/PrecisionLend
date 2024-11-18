@@ -14,6 +14,9 @@ Machine Learning-Powered Loan Processing and Credit Scoring
   - [ZenML Integrations](#zenml-integrations)
     - [Useful Commands](#useful-commands)
     - [MLFlow Integration](#mlflow-integration)
+    - [Get MLFlow Tracking URL](#get-mlflow-tracking-url)
+    - [ZenML Stack CLI Commands](#zenml-stack-cli-commands)
+    - [Create ZenML Secret](#create-zenml-secret)
 
 ## Overview
 
@@ -113,18 +116,24 @@ zenml show
 # Add MLFlow to your stack
 zenml integration install mlflow -y
 
-# Regisster the MLFlow experiment tracker
+# Register the MLFlow experiment tracker
 zenml experiment-tracker register mlflow_experiment_tracker --flavor=mlflow
+
+# Register and set a stack with the new experiment tracker
+STACK_NAME=custom_stack
+EXPERIMENT_TRACKER_NAME=mlflow
+zenml stack register $STACK_NAME -a default -o default \
+  -e $EXPERIMENT_TRACKER_NAME --set
 
 # Authentication Methods
 # Create a secret called `mlflow_secret` with key-value pairs for the
 # username and password to authenticate with the MLflow tracking server
-zenml secret create mlflow_secret \
+zenml secret create <mlflow_secret_name> \
     --username=<USERNAME> \
     --password=<PASSWORD>
 
 # Reference the username and password in our experiment tracker component
-zenml experiment-tracker register mlflow \
+zenml experiment-tracker register ${EXPERIMENT_TRACKER_NAME} \
     --flavor=mlflow \
     --tracking_username={{mlflow_secret.username}} \
     --tracking_password={{mlflow_secret.password}} \
@@ -136,4 +145,77 @@ HOST="127.0.0.1"
 PORT="5000"
 
 mlflow server --host ${HOST} --port ${PORT}
+```
+
+### Get MLFlow Tracking URL
+
+```py
+from zenml.client import Client
+
+client = Client()
+tracking_uri: str = client.active_stack.experiment_tracker.get_tracking_uri()
+
+print(tracking_uri)
+```
+
+- To use the MLFlow tracking server, run the following command:
+
+```sh
+tracking_uri=<value_from_previous_step>
+mlflow ui --backend-store-uri ${tracking_uri}
+```
+
+### ZenML Stack CLI Commands
+
+- To display the help message for the `zenml stack register --help` command:
+
+```txt
+Options:
+  -a, --artifact-store TEXT       Name of the artifact store for this stack.
+  -o, --orchestrator TEXT         Name of the orchestrator for this stack.
+  -c, --container_registry TEXT   Name of the container registry for this
+                                  stack.
+  -r, --model_registry TEXT       Name of the model registry for this stack.
+  -s, --step_operator TEXT        Name of the step operator for this stack.
+  -f, --feature_store TEXT        Name of the feature store for this stack.
+  -d, --model_deployer TEXT       Name of the model deployer for this stack.
+  -e, --experiment_tracker TEXT   Name of the experiment tracker for this
+                                  stack.
+  -al, --alerter TEXT             Name of the alerter for this stack.
+  -an, --annotator TEXT           Name of the annotator for this stack.
+  -dv, --data_validator TEXT      Name of the data validator for this stack.
+  -i, --image_builder TEXT        Name of the image builder for this stack.
+  --set                           Immediately set this stack as active.
+  -p, --provider [aws|azure|gcp]  Name of the cloud provider for this stack.
+  -sc, --connector TEXT           Name of the service connector for this
+```
+
+- e.g.
+
+```sh
+# Register and set a stack with the new experiment tracker
+STACK_NAME=custom_stack
+
+zenml stack register ${STACK_NAME} \  # name of the stack
+-a default \ # name of the artifact store
+-o default \ # name of the orchestrator
+-e ${STACK_NAME} --set  \ # set the stack using the STACK_NAME variable
+```
+
+### Create ZenML Secret
+
+- Create a secret called `mlflow_secret` with key-value pairs for the username and password to authenticate with the MLflow tracking server.
+
+```sh
+zenml secret create <mlflow_secret_name> \
+    --username=default \
+    --password=password \
+    --uri=<path_to_mlflow_uri>
+
+# Reference the username and password in our experiment tracker component
+zenml experiment-tracker register <mlflow_experiment_tracker_name> \
+    --flavor=mlflow \
+    --tracking_username={{mlflow_secret.username}} \
+    --tracking_password={{mlflow_secret.password}} \
+    --tracking_uri={{mlflow_secret.uri}}
 ```

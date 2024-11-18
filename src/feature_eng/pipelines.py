@@ -41,7 +41,8 @@ def credit_loan_status_preprocessing_pipeline() -> Pipeline:
                 numeric_cols,
             ),
             ("cat", OneHotEncoder(), categorical_cols),
-        ]
+        ],
+        remainder="passthrough",
     )
     pipe: Pipeline = Pipeline(
         steps=[
@@ -83,11 +84,12 @@ def loan_tenure_preprocessing_pipeline() -> Pipeline:
                 numeric_cols,
             ),
             ("cat", OneHotEncoder(), categorical_cols),
-        ]
+        ],
+        remainder="passthrough",
     )
     pipe: Pipeline = Pipeline(
         steps=[
             ("column_transformer", column_transformer),
-        ]
+        ],
     )
     return pipe

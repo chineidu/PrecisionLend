@@ -2,22 +2,36 @@ from typing import Annotated
 
 import numpy as np
 from omegaconf import DictConfig
+import pandas as pd
 import polars as pl
+from sklearn.base import ClassifierMixin
 from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
 from zenml import step, log_artifact_metadata
 from zenml.integrations.polars.materializers import PolarsMaterializer
 from zenml.integrations.sklearn.materializers import SklearnMaterializer
-
+import mlflow
+from zenml.client import Client
+from zenml.integrations.mlflow.experiment_trackers import MLFlowExperimentTracker
 
 from src.data_eng.extraction import ingest_data
 from src.utilities import logger, load_config
 from src.feature_eng.pipelines import credit_loan_status_preprocessing_pipeline
 from src.feature_eng.utilities import (
     clean_training_data,
-    transform_array_to_lazyframe,
+    transform_array_to_dataframe,
 )
 
 
+experiment_tracker = Client().active_stack.experiment_tracker
+
+if not experiment_tracker or not isinstance(
+    experiment_tracker, MLFlowExperimentTracker
+):
+    raise RuntimeError(
+        "Your active stack needs to contain a MLFlow experiment tracker for"
+        " this to work."
+    )
 CONFIG: DictConfig = load_config()
 
 
@@ -136,10 +150,10 @@ def create_training_features(
     """
     try:
         logger.info("Creating training features")
-        np_matrix: np.ndarray = pipe.fit_transform(data)
-        features_df: pl.DataFrame = transform_array_to_lazyframe(
-            array=np_matrix, processor_pipe=pipe
-        ).collect()
+        arr_matrix: np.ndarray = pipe.fit_transform(data.to_pandas())
+        features_df: pl.DataFrame = transform_array_to_dataframe(
+            array=arr_matrix, processor_pipe=pipe
+        )
         log_artifact_metadata(
             artifact_name="cleaned_data",
             metadata={
@@ -158,3 +172,18 @@ def create_training_features(
     except Exception as e:
         logger.error(f"Error creating training features: {e}")
         raise e
+
+
+@step(experiment_tracker=experiment_tracker.name)
+def train_model(data: pl.DataFrame) -> ClassifierMixin:
+    target: str = CONFIG.credit_score.features.target
+
+    data: pd.DataFrame = data.to_pandas()  # type: ignore
+    X_train: pd.DataFrame = data.drop(columns=[target])
+    y_train: pd.Series = data[target]
+    model: ClassifierMixin = LogisticRegression()
+    mlflow.sklearn.autolog()
+
+    logger.info("Training model")
+    model.fit(X_train, y_train)
+    return model

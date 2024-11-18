@@ -168,3 +168,4 @@ cython_debug/
 **/**/outputs
 **/**/models
 **/**/*.ipynb
+**/**/mlruns
