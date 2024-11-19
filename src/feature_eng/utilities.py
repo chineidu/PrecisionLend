@@ -8,6 +8,7 @@ import pandas as pd
 import polars as pl
 from polars import selectors as cs
 from pydantic import BaseModel, Field
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from typeguard import typechecked
 
@@ -175,9 +176,28 @@ def transform_array_to_dataframe(
 
 @typechecked
 def polars_to_json(obj: Any) -> Any:
-    """Convert Polars data types to JSON serializable format."""
+    """Convert Polars data types to JSON serializable format.
 
-    # Handle Polars' numeric data types
+    Parameters
+    ----------
+    obj : Any
+        Input object to be converted to JSON serializable format. Can be a Polars
+        numeric type (Float64, Int64, UInt64), DataTypeClass, or Python primitive
+        type (str, int, float, bool).
+
+    Returns
+    -------
+    Any
+        JSON serializable version of the input object. Numeric types are converted
+        to their Python equivalents, DataTypeClass to string, and primitive types
+        are returned as-is.
+
+    Raises
+    ------
+    TypeError
+        If the input object type is not supported for JSON serialization.
+    """
+
     if isinstance(obj, (pl.Float64, pl.Int64, pl.UInt64)):
         return obj.value
 
@@ -185,11 +205,9 @@ def polars_to_json(obj: Any) -> Any:
     elif isinstance(obj, pl.datatypes.DataTypeClass):
         return str(obj)
 
-    # Handle other data types
     elif isinstance(obj, (str, int, float, bool)):
         return obj
 
-    # Raise error for unsupported types
     else:
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
@@ -291,6 +309,37 @@ def get_metadata(input: pl.DataFrame | pd.DataFrame) -> dict[str, Any]:
     raise TypeError(
         f"Input must be a pandas or polars DataFrame, got {type(input).__name__} instead"
     )
+
+
+@typechecked
+def split_data_into_train_test(
+    data: pl.DataFrame, target: str, test_size: float, random_state: int
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Split data into training and test sets using stratified sampling.
+
+    Parameters
+    ----------
+    data : pl.DataFrame
+        Input dataframe to split, shape (n_samples, n_features)
+    target : str
+        Name of the target column for stratification
+    test_size : float
+        Proportion of the dataset to include in the test split, between 0.0 and 1.0
+    random_state : int
+        Random seed for reproducibility
+
+    Returns
+    -------
+    tuple[pl.DataFrame, pl.DataFrame]
+        A tuple containing:
+        - X_train: Training data, shape (n_samples * (1-test_size), n_features)
+        - X_test: Test data, shape (n_samples * test_size, n_features)
+    """
+    X_train, X_test = train_test_split(
+        data, stratify=data[target], test_size=test_size, random_state=random_state
+    )
+
+    return X_train, X_test
 
 
 @typechecked

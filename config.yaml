@@ -46,5 +46,37 @@ loan_tenure:
     strategy: uniform
     encode: ordinal
 
+estimators:
+  classifier:
+    RandomForestClassifier:
+      n_estimators: 40 # 100
+      criterion: gini
+      max_depth: 10
+      min_samples_split: 2
+      min_samples_leaf: 1
+      max_features: sqrt
+      max_leaf_nodes: null
+    LogisticRegression:
+      penalty: l2
+      C: 1.0
+      solver: lbfgs
+      max_iter: 100
+      multi_class: auto
+    GradientBoostingClassifier:
+      loss: log_loss
+      learning_rate: 0.1
+      n_estimators: 30
+      criterion: friedman_mse
+      min_samples_split: 2
+      min_samples_leaf: 1
+      max_depth: 3
+      max_features: null # sqrt
+      max_leaf_nodes: null
+
 general:
   random_state: 42
+  n_splits: 5
+  test_size: 0.2
+  model_selection:
+    estimator_type: classifier
+    estimator_name: RandomForestClassifier
