@@ -29,3 +29,37 @@ dev = [
     "nb-black-formatter>=1.0.1",
     "ruff>=0.7.4",
 ]
+
+
+# ----------------------------------
+# --- Poe the Poet Configuration ---
+# ----------------------------------
+[tool.poe.tasks.start-mlflow]
+help = "Start MLflow Server"
+shell = """
+HOST=0.0.0.0
+PORT=5000
+BACKEND_STORE_URI=sqlite:///mlflow.db
+
+mlflow server \
+  --backend-store-uri ${BACKEND_STORE_URI} \
+  --host ${HOST} \
+  --port ${PORT}
+"""
+
+[tool.poe.tasks.stop-mlflow]
+help = "Stop MLflow Server"
+shell = """
+pkill -f mlflow
+"""
+
+[tool.poe.tasks.start-zenml]
+help = "Start ZenML Server"
+shell = "export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES && zenml up"
+
+[tool.poe.tasks.stop-zenml]
+help = "Stop ZenML Server"
+shell =  "zenml down"
+
+[tool.poe.tasks]
+# ZenML Commands

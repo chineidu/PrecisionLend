@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+import json
 from typing import Any
 
 import numpy as np
@@ -172,6 +173,27 @@ def transform_array_to_dataframe(
     return data
 
 
+@typechecked
+def polars_to_json(obj: Any) -> Any:
+    """Convert Polars data types to JSON serializable format."""
+
+    # Handle Polars' numeric data types
+    if isinstance(obj, (pl.Float64, pl.Int64, pl.UInt64)):
+        return obj.value
+
+    # Handle Polars' DataTypeClass
+    elif isinstance(obj, pl.datatypes.DataTypeClass):
+        return str(obj)
+
+    # Handle other data types
+    elif isinstance(obj, (str, int, float, bool)):
+        return obj
+
+    # Raise error for unsupported types
+    else:
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
 class ScikitLearnPipeline(BaseModel):
     """A Pydantic model for scikit-learn Pipeline objects.
 
@@ -205,32 +227,22 @@ class ScikitLearnPipeline(BaseModel):
 
 
 @typechecked
-def _get_datatrame_metadata(data: pl.DataFrame | pd.DataFrame) -> dict[str, Any]:
-    """Get metadata information from a DataFrame.
+def _get_datatrame_metadata(
+    data: pl.DataFrame,
+) -> dict[str, dict[str, Any] | list[str]]:
+    """Get metadata information from a Polars DataFrame."""
 
-    This function extracts metadata information from a Polars or Pandas DataFrame,
-    including shape, columns, and summary statistics.
-
-    Parameters
-    ----------
-    data : pl.DataFrame | pd.DataFrame
-        Input DataFrame of shape (n_rows, n_columns)
-
-    Returns
-    -------
-    dict[str, Any]
-        Dictionary containing DataFrame metadata with keys:
-        - shape: dict with n_rows and n_columns
-        - columns: list of column names
-        - summary_stats: descriptive statistics
-    """
-    if isinstance(data, pd.DataFrame):
-        data = pl.from_pandas(data)
-    return {
-        "shape": {"n_rows": data.shape[0], "n_columns": data.shape[1]},
-        "columns": data.columns,
-        "summary_stats": data.describe().to_dicts(),
+    result = {
+        "shape": {
+            "n_rows": data.shape[0],
+            "n_columns": data.shape[1],
+        },
+        "schema": {col: str(dtype) for col, dtype in data.schema.items()},
+        "missing_values": data.null_count().to_dicts()[0],
+        "num_duplicate_rows": data.is_duplicated().sum(),
     }
+
+    return json.loads(json.dumps(result, default=polars_to_json))
 
 
 @typechecked

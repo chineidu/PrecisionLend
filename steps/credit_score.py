@@ -20,6 +20,7 @@ from src.feature_eng.pipelines import credit_loan_status_preprocessing_pipeline
 from src.feature_eng.utilities import (
     clean_training_data,
     transform_array_to_dataframe,
+    get_metadata,
 )
 
 
@@ -51,14 +52,8 @@ def load_data(path: str) -> Annotated[pl.DataFrame, "data"]:
     """
     data: pl.DataFrame = ingest_data(path).collect()
     log_artifact_metadata(
-        artifact_name="cleaned_data",
-        metadata={
-            "shape": {
-                "n_rows": data.shape[0],
-                "n_columns": data.shape[1],
-            },
-            "columns": data.columns,
-        },
+        artifact_name="data",
+        metadata=get_metadata(input=data),
     )
     return data
 
@@ -87,13 +82,7 @@ def prepare_data(data: pl.DataFrame) -> Annotated[pl.DataFrame, "cleaned_data"]:
         cleaned_data: pl.DataFrame = clean_training_data(data=data.lazy()).collect()
         log_artifact_metadata(
             artifact_name="cleaned_data",
-            metadata={
-                "shape": {
-                    "n_rows": cleaned_data.shape[0],
-                    "n_columns": cleaned_data.shape[1],
-                },
-                "columns": cleaned_data.columns,
-            },
+            metadata=get_metadata(input=cleaned_data),
         )
         return cleaned_data
 
@@ -155,14 +144,8 @@ def create_training_features(
             array=arr_matrix, processor_pipe=pipe
         )
         log_artifact_metadata(
-            artifact_name="cleaned_data",
-            metadata={
-                "shape": {
-                    "n_rows": features_df.shape[0],
-                    "n_columns": features_df.shape[1],
-                },
-                "columns": features_df.columns,
-            },
+            artifact_name="features_df",
+            metadata=get_metadata(input=features_df),
         )
         log_artifact_metadata(
             artifact_name="pipe", metadata={"parameters": str(pipe.get_params())}
@@ -175,7 +158,7 @@ def create_training_features(
 
 
 @step(experiment_tracker=experiment_tracker.name)
-def train_model(data: pl.DataFrame) -> ClassifierMixin:
+def train_model(data: pl.DataFrame) -> Annotated[ClassifierMixin, "model"]:
     target: str = CONFIG.credit_score.features.target
 
     data: pd.DataFrame = data.to_pandas()  # type: ignore
