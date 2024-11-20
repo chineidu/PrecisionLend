@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import numpy as np
 from omegaconf import DictConfig
@@ -273,11 +273,25 @@ def create_inference_features(
 def load_estimator_object(
     estimator_type: Literal["classifier", "regressor"], estimator_name: ESTIMATOR_NAME
 ) -> Annotated[ClassifierMixin | RegressorMixin, "estimator"]:
+    """Load and configure a scikit-learn estimator object based on type and name.
+
+    Parameters
+    ----------
+    estimator_type : Literal["classifier", "regressor"]
+        Type of the estimator to load, either "classifier" or "regressor".
+    estimator_name : ESTIMATOR_NAME
+        Name of the specific estimator to instantiate.
+
+    Returns
+    -------
+    ClassifierMixin | RegressorMixin
+        Configured scikit-learn estimator object.
+    """
     logger.info("Loading estimator object")
 
     if estimator_type == "classifier" and estimator_name == "LogisticRegression":
         logger.info("Using LogisticRegression")
-        estimator: Any = LogisticRegression(
+        estimator: LogisticRegression = LogisticRegression(
             penalty=CONFIG.estimators.classifier.LogisticRegression.penalty,
             C=CONFIG.estimators.classifier.LogisticRegression.C,
             solver=CONFIG.estimators.classifier.LogisticRegression.solver,
@@ -288,7 +302,7 @@ def load_estimator_object(
 
     elif estimator_type == "classifier" and estimator_name == "RandomForestClassifier":
         logger.info("Using RandomForestClassifier")
-        estimator: Any = RandomForestClassifier(  # type: ignore
+        estimator: RandomForestClassifier = RandomForestClassifier(  # type: ignore
             n_estimators=CONFIG.estimators.classifier.RandomForestClassifier.n_estimators,
             criterion=CONFIG.estimators.classifier.RandomForestClassifier.criterion,
             max_depth=CONFIG.estimators.classifier.RandomForestClassifier.max_depth,
@@ -304,7 +318,7 @@ def load_estimator_object(
         and estimator_name == "GradientBoostingClassifier"
     ):
         logger.info("Using GradientBoostingClassifier")
-        estimator: Any = GradientBoostingClassifier(  # type: ignore
+        estimator: GradientBoostingClassifier = GradientBoostingClassifier(  # type: ignore
             loss=CONFIG.estimators.classifier.GradientBoostingClassifier.loss,
             learning_rate=CONFIG.estimators.classifier.GradientBoostingClassifier.learning_rate,
             n_estimators=CONFIG.estimators.classifier.GradientBoostingClassifier.n_estimators,
@@ -317,21 +331,6 @@ def load_estimator_object(
             random_state=CONFIG.general.random_state,
         )
     return estimator
-
-
-# @step(experiment_tracker=experiment_tracker.name)
-# def train_model(data: pl.DataFrame) -> Annotated[ClassifierMixin, "model"]:
-#     target: str = CONFIG.credit_score.features.target
-
-#     data: pd.DataFrame = data.to_pandas()  # type: ignore
-#     X_train: pd.DataFrame = data.drop(columns=[target])
-#     y_train: pd.Series = data[target]
-#     model: ClassifierMixin = LogisticRegression()
-#     mlflow.sklearn.autolog()
-
-#     logger.info("Training model")
-#     model.fit(X_train, y_train)
-#     return model
 
 
 @step(experiment_tracker=experiment_tracker.name)

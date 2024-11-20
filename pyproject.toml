@@ -34,23 +34,23 @@ dev = [
 # ----------------------------------
 # --- Poe the Poet Configuration ---
 # ----------------------------------
+[tool.poe]
+# Load Environment Variables
+envfile = ".env"
+
 [tool.poe.tasks.start-mlflow]
 help = "Start MLflow Server"
 shell = """
-HOST=0.0.0.0
-PORT=5000
-BACKEND_STORE_URI=sqlite:///mlflow.db
-
 mlflow server \
-  --backend-store-uri ${BACKEND_STORE_URI} \
-  --host ${HOST} \
-  --port ${PORT}
+  --backend-store-uri ${MLFLOW_BACKEND_STORE_URI} \
+  --host ${MLFLOW_HOST} \
+  --port ${MLFLOW_PORT}
 """
 
 [tool.poe.tasks.stop-mlflow]
 help = "Stop MLflow Server"
 shell = """
-pkill -f mlflow
+pkill -f 'mlflow server'
 """
 
 [tool.poe.tasks.start-zenml]
