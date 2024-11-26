@@ -20,6 +20,7 @@ Machine Learning-Powered Loan Processing and Credit Scoring
         - [B.) Pipelines](#b-pipelines)
           - [1.) Run ZenML with MLFlow Docker Integration](#1-run-zenml-with-mlflow-docker-integration)
           - [2.) Run ZenML with A Connected MLFlow Server](#2-run-zenml-with-a-connected-mlflow-server)
+    - [ZenML Evidently Integration](#zenml-evidently-integration)
     - [ZenML Stack CLI Commands](#zenml-stack-cli-commands)
 
 ## Overview
@@ -393,6 +394,29 @@ def credit_pipeline() -> (
 
 if __name__ == "__main__":
     run = credit_pipeline()
+```
+
+### ZenML Evidently Integration
+
+- To install the ZenML Evidently integration, run the following command:
+
+```sh
+# Install ZenML Evidently Integration With UV
+zenml integration install evidently -y --uv
+```
+
+- Register a ZenML data validator:
+
+```sh
+VALIDATOR_NAME="evidently_data_validator"
+zenml data-validator register ${VALIDATOR_NAME} \
+  --flavor=evidently
+```
+
+- Update an existing ZenML stack to include the Evidently data validator:
+
+```sh
+zenml stack update -dv ${VALIDATOR_NAME}
 ```
 
 ### ZenML Stack CLI Commands
