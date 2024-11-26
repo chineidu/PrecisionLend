@@ -15,6 +15,7 @@ from zenml.integrations.sklearn.materializers import SklearnMaterializer
 import mlflow
 from zenml.client import Client
 from zenml.integrations.mlflow.experiment_trackers import MLFlowExperimentTracker
+from zenml.config.retry_config import StepRetryConfig
 
 from src.data_eng.extraction import ingest_data
 from src.training import evaluate, train_model_with_cross_validation
@@ -29,6 +30,7 @@ from src.feature_eng.utilities import (
 
 
 CONFIG: DictConfig = load_config()
+STEP_RETRY_CONFIG = StepRetryConfig(max_retries=5, delay=5, backoff=2)
 ESTIMATOR_NAME = Literal[
     "LogisticRegression", "RandomForestClassifier", "GradientBoostingClassifier"
 ]
@@ -43,7 +45,7 @@ if not experiment_tracker or not isinstance(
     )
 
 
-@step(output_materializers=PolarsMaterializer)
+@step(retry=STEP_RETRY_CONFIG, output_materializers=PolarsMaterializer)
 def load_data(path: str) -> Annotated[pl.DataFrame, "data"]:
     """Load data from a file path into a Polars DataFrame.
 
@@ -65,7 +67,10 @@ def load_data(path: str) -> Annotated[pl.DataFrame, "data"]:
     return data
 
 
-@step(output_materializers=PolarsMaterializer)
+@step(
+    retry=STEP_RETRY_CONFIG,
+    output_materializers=PolarsMaterializer,
+)
 def prepare_data(data: pl.DataFrame) -> Annotated[pl.DataFrame, "cleaned_data"]:
     """Preprocess the input data by cleaning and transforming.
 
@@ -99,10 +104,11 @@ def prepare_data(data: pl.DataFrame) -> Annotated[pl.DataFrame, "cleaned_data"]:
 
 
 @step(
+    retry=STEP_RETRY_CONFIG,
     output_materializers={
         "train_data": PolarsMaterializer,
         "test_data": PolarsMaterializer,
-    }
+    },
 )
 def split_data(
     data: pl.DataFrame, target: str, test_size: float, random_state: int
@@ -147,7 +153,10 @@ def split_data(
     return train_data, test_data
 
 
-@step(output_materializers=SklearnMaterializer)
+@step(
+    retry=STEP_RETRY_CONFIG,
+    output_materializers=SklearnMaterializer,
+)
 def load_training_processor() -> Annotated[Pipeline, "pipe"]:
     """Load and initialize the credit loan status preprocessing pipeline.
 
@@ -165,10 +174,11 @@ def load_training_processor() -> Annotated[Pipeline, "pipe"]:
 
 
 @step(
+    retry=STEP_RETRY_CONFIG,
     output_materializers={
         "features_df": PolarsMaterializer,
         "pipe": SklearnMaterializer,
-    }
+    },
 )
 def create_training_features(
     data: pl.DataFrame, pipe: Pipeline
@@ -214,6 +224,7 @@ def create_training_features(
 
 
 @step(
+    retry=STEP_RETRY_CONFIG,
     enable_cache=False,
     output_materializers={
         "X_test_arr": NumpyMaterializer,
@@ -269,7 +280,10 @@ def create_inference_features(
         raise
 
 
-@step(output_materializers=SklearnMaterializer)
+@step(
+    retry=STEP_RETRY_CONFIG,
+    output_materializers=SklearnMaterializer,
+)
 def load_estimator_object(
     estimator_type: Literal["classifier", "regressor"], estimator_name: ESTIMATOR_NAME
 ) -> Annotated[ClassifierMixin | RegressorMixin, "estimator"]:
@@ -333,7 +347,10 @@ def load_estimator_object(
     return estimator
 
 
-@step(experiment_tracker=experiment_tracker.name)
+@step(
+    retry=STEP_RETRY_CONFIG,
+    experiment_tracker=experiment_tracker.name,
+)
 def train_model(
     data: pl.DataFrame,
     estimator: ClassifierMixin | RegressorMixin,
@@ -353,7 +370,10 @@ def train_model(
     return estimator
 
 
-@step(experiment_tracker=experiment_tracker.name)
+@step(
+    retry=STEP_RETRY_CONFIG,
+    experiment_tracker=experiment_tracker.name,
+)
 def evaluate_model(
     estimator: ClassifierMixin,
     X_test: np.ndarray,
