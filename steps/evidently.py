@@ -60,7 +60,7 @@ def data_splitter(
         id=pl.arange(0, data.shape[0]),
         target=pl.col(CONFIG.credit_score.features.target),
         prediction=(
-            pl.col(CONFIG.credit_score.features.target) + rng.normal(-0.85, 1)
+            pl.col(CONFIG.credit_score.features.target) + rng.normal(-2.85, 1)
         ).clip(0, 1),
     ).drop([CONFIG.credit_score.features.target])
 
@@ -74,7 +74,7 @@ def data_splitter(
         random_state=CONFIG.general.random_state,
     )
     cur_data = cur_data.with_columns(
-        person_income=(pl.col("person_income") + rng.normal(2_000, 500)).round(1),
+        person_income=(pl.col("person_income") + rng.normal(12_000, 500)).round(1),
         person_emp_exp=pl.col("person_emp_exp") + rng.integers(0, 10),
         cb_person_cred_hist_length=pl.col("cb_person_cred_hist_length")
         + rng.integers(0, 4),
