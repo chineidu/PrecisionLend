@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import numpy as np
 from omegaconf import DictConfig
@@ -19,6 +19,7 @@ from zenml.integrations.mlflow.experiment_trackers import MLFlowExperimentTracke
 from zenml.config.retry_config import StepRetryConfig
 
 from src.data_eng.extraction import ingest_data
+from src.mlflow_utils import load_best_model
 from src.training import evaluate, train_model_with_cross_validation
 from src.utilities import logger, load_config
 from src.feature_eng.pipelines import credit_loan_status_preprocessing_pipeline
@@ -36,6 +37,7 @@ ESTIMATOR_NAME = Literal[
     "LogisticRegression", "RandomForestClassifier", "GradientBoostingClassifier"
 ]
 experiment_tracker = Client().active_stack.experiment_tracker
+TRACKING_URI: str = experiment_tracker.get_tracking_uri()
 
 if not experiment_tracker or not isinstance(
     experiment_tracker, MLFlowExperimentTracker
@@ -397,3 +399,15 @@ def evaluate_model(
     mlflow.log_metrics(results)
     log_artifact_metadata(artifact_name="results", metadata=results)
     return results
+
+
+@step(retry=STEP_RETRY_CONFIG)
+def load_trained_model_with_mlflow(experiment_name: str) -> Annotated[Any, "estimator"]:
+    logger.info("Loading the best model")
+    try:
+        estimator: Any = load_best_model(experiment_name=experiment_name)
+        return estimator
+
+    except Exception as e:
+        logger.warning(f"Error loading model, {e}")
+        raise
