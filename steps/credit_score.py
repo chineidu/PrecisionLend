@@ -13,6 +13,7 @@ from zenml.integrations.polars.materializers import PolarsMaterializer
 from zenml.integrations.numpy.materializers.numpy_materializer import NumpyMaterializer
 from zenml.integrations.sklearn.materializers import SklearnMaterializer
 import mlflow
+from mlflow.models import infer_signature
 from zenml.client import Client
 from zenml.integrations.mlflow.experiment_trackers import MLFlowExperimentTracker
 from zenml.config.retry_config import StepRetryConfig
@@ -365,6 +366,15 @@ def train_model(
     logger.info("Training model")
     estimator, _, _, _ = train_model_with_cross_validation(
         X=X_train, y=y_train, estimator=estimator, n_splits=n_splits
+    )
+
+    # Log the model to MLflow
+    signature = infer_signature(model_input=X_train, model_output=y_train)
+    mlflow.sklearn.log_model(
+        sk_model=estimator,
+        artifact_path="sklearn-model",
+        signature=signature,
+        registered_model_name=f"sk-learn-{estimator.__class__.__name__ }-model",
     )
 
     return estimator

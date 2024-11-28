@@ -77,7 +77,7 @@ general:
   random_state: 42
   n_splits: 5
   test_size: 0.2
-  current_size: 0.4
+  current_size: 0.4  # For data profiling
   model_selection:
     estimator_type: classifier
-    estimator_name: GradientBoostingClassifier
+    estimator_name: RandomForestClassifier
