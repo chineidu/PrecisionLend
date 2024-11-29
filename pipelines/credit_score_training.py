@@ -11,6 +11,7 @@ from steps.credit_score import (
     create_inference_features,
     create_training_features,
     evaluate_model,
+    get_mlflow_experiment_status,
     load_data,
     load_estimator_object,
     load_training_processor,
@@ -77,6 +78,7 @@ def credit_pipeline(
         _: dict[str, float] = evaluate_model(
             estimator=trained_model, X_test=X_test_arr, y_test=y_test_arr
         )
+        _, _ = get_mlflow_experiment_status()
 
         return trained_model, processor_pipe
 

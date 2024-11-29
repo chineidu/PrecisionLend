@@ -19,12 +19,16 @@ from zenml.integrations.mlflow.experiment_trackers import MLFlowExperimentTracke
 from zenml.config.retry_config import StepRetryConfig
 
 from src.data_eng.extraction import ingest_data
-from src.mlflow_utils import load_best_model
+from src.mlflow_utils import (
+    get_experiment_status,
+    load_best_model,
+)
 from src.training import evaluate, train_model_with_cross_validation
 from src.utilities import logger, load_config
 from src.feature_eng.pipelines import credit_loan_status_preprocessing_pipeline
 from src.feature_eng.utilities import (
     clean_training_data,
+    get_inference_features,
     split_data_into_train_test,
     transform_array_to_dataframe,
     get_metadata,
@@ -243,21 +247,8 @@ def create_inference_features(
 
     try:
         logger.info("Creating inference features")
-
-        # Ensure target column presence
-        if not has_target:
-            data = data.with_columns(pl.lit(99).alias(target))
-
-        # Transform data using pipeline
-        arr_matrix = pipe.transform(data.to_pandas())
-        features_df = transform_array_to_dataframe(
-            array=arr_matrix, processor_pipe=pipe
-        )
-
-        # Split features and target
-        X_test_arr = features_df.drop(target).to_numpy()
-        y_test_arr = (
-            features_df.select(target).to_numpy().flatten() if has_target else None
+        X_test_arr, y_test_arr = get_inference_features(
+            data=data, pipe=pipe, target=target, has_target=has_target
         )
         # Log artifact metadata
         log_artifact_metadata(
@@ -371,7 +362,9 @@ def train_model(
     )
 
     # Log the model to MLflow
-    signature = infer_signature(model_input=X_train, model_output=y_train)
+    signature = infer_signature(
+        model_input=X_train, model_output=estimator.predict_proba(X_train)[:, 1]
+    )
     mlflow.sklearn.log_model(
         sk_model=estimator,
         artifact_path="sklearn-model",
@@ -405,9 +398,31 @@ def evaluate_model(
 def load_trained_model_with_mlflow(experiment_name: str) -> Annotated[Any, "estimator"]:
     logger.info("Loading the best model")
     try:
-        estimator: Any = load_best_model(experiment_name=experiment_name)
+        estimator: Any = load_best_model(experiment_name=CONFIG.general.experiment_name)
         return estimator
 
     except Exception as e:
         logger.warning(f"Error loading model, {e}")
+        raise
+
+
+@step(retry=STEP_RETRY_CONFIG)
+def get_mlflow_experiment_status() -> (
+    tuple[Annotated[str, "experiment_id"], Annotated[str, "run_id"]]
+):
+    try:
+        experiment_id, run_id = get_experiment_status(
+            experiment_name=CONFIG.general.experiment_name, metric="auc_score"
+        )
+        logger.info(f"Experiment ID: {experiment_id} | Run ID: {run_id}")
+
+        log_artifact_metadata(
+            artifact_name="experiment_id", metadata={"experiment_id": experiment_id}
+        )
+        log_artifact_metadata(artifact_name="run_id", metadata={"run_id": run_id})
+
+        return experiment_id, run_id
+
+    except Exception as e:
+        logger.warning(f"Error getting experiment id, {e}")
         raise

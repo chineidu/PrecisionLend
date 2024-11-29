@@ -77,7 +77,9 @@ general:
   random_state: 42
   n_splits: 5
   test_size: 0.2
-  current_size: 0.4  # For data profiling
+  current_size: 0.4 # For data profiling
+  experiment_name: credit_pipeline
+
   model_selection:
     estimator_type: classifier
     estimator_name: RandomForestClassifier

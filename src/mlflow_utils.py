@@ -1,6 +1,9 @@
 from typing import Any, Literal
+
+import joblib
 import mlflow
 from mlflow.tracking import MlflowClient
+from sklearn.base import ClassifierMixin
 from typeguard import typechecked
 
 from .config import settings
@@ -135,3 +138,58 @@ def load_best_model(experiment_name: str, artifact_path: str = "sklearn-model") 
     loaded_model: Any = mlflow.pyfunc.load_model(logged_model)
 
     return loaded_model
+
+
+@typechecked
+def load_best_registered_model(
+    experiment_id: str, run_id: str, artifact_path: str = "sklearn-model"
+) -> ClassifierMixin:
+    """Load the best registered model from local MLflow artifacts directory.
+
+    Parameters
+    ----------
+    experiment_id : str
+        The ID of the MLflow experiment.
+    run_id : str
+        The ID of the specific MLflow run.
+    artifact_path : str, default="sklearn-model"
+        Path where the model artifact is stored.
+
+    Returns
+    -------
+    ClassifierMixin
+        The loaded scikit-learn classifier model.
+    """
+    # Local path to the model artifact
+    path: str = (
+        f"mlartifacts/{experiment_id}/{run_id}/artifacts/{artifact_path}/model.pkl"
+    )
+
+    with open(path, "rb") as f:
+        model: ClassifierMixin = joblib.load(f)
+
+    return model
+
+
+@typechecked
+def get_experiment_status(experiment_name: str, metric: str) -> tuple[str, str]:
+    """Get the experiment ID and best run ID for a given experiment.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the MLflow experiment
+    metric : str
+        Name of the metric to use for finding the best run
+
+    Returns
+    -------
+    tuple[int, str]
+        A tuple containing:
+        - experiment_id: The MLflow experiment ID
+        - run_id: The ID of the best performing run based on the metric
+    """
+    experiment_id: str = get_experiment_id(experiment_name=experiment_name)
+    run_id: str = get_best_run_id(experiment_id=experiment_id, metric=metric)
+
+    return (experiment_id, run_id)

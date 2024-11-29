@@ -54,6 +54,10 @@ shell = """
 pkill -f 'mlflow server'
 """
 
+[tool.poe.tasks.delete-mlflow-experiment]
+help = "Delete MLflow experiment"
+shell = "mlflow experiments delete --experiment-id YOUR_EXPERIMENT_ID"
+
 [tool.poe.tasks.start-zenml]
 help = "Start ZenML Server"
 shell = "export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES && zenml up"

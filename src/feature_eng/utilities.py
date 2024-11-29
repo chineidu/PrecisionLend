@@ -343,6 +343,48 @@ def split_data_into_train_test(
 
 
 @typechecked
+def get_inference_features(
+    data: pl.DataFrame, pipe: Pipeline, target: str, has_target: bool = False
+) -> tuple[np.ndarray, np.ndarray | None]:
+    """Extract features from data using a fitted pipeline for inference.
+
+    Parameters
+    ----------
+    data : pl.DataFrame
+        Input data to transform, shape (n_samples, n_features)
+    pipe : Pipeline
+        Fitted scikit-learn pipeline for feature transformation
+    target : str
+        Name of the target column
+    has_target : bool, default=False
+        Whether the input data contains the target column
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray | None]
+        A tuple containing:
+        - X_test_arr: Transformed feature array, shape (n_samples, n_transformed_features)
+        - y_test_arr: Target array if has_target=True, shape (n_samples,), else None
+    """
+    if not has_target:
+        data = data.with_columns(pl.lit(99).alias(target))
+
+    # Transform data using pipeline
+    arr_matrix: np.ndarray = pipe.transform(data.to_pandas())
+    features_df: pl.DataFrame = transform_array_to_dataframe(
+        array=arr_matrix, processor_pipe=pipe
+    )
+
+    # Split features and target
+    X_test_arr: np.ndarray = features_df.drop(target).to_numpy()
+    y_test_arr: np.ndarray | None = (
+        features_df.select(target).to_numpy().flatten() if has_target else None
+    )
+
+    return X_test_arr, y_test_arr
+
+
+@typechecked
 def probability_to_credit_score(probability: float) -> int:
     """Convert a probability value to a credit score.
 
