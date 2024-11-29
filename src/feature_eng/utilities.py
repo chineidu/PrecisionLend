@@ -175,6 +175,34 @@ def transform_array_to_dataframe(
 
 
 @typechecked
+def numpy_to_json(obj: Any) -> Any:
+    """Convert numpy arrays and numpy generic types to JSON serializable objects.
+
+    Parameters
+    ----------
+    obj : Any
+        Input object to convert, can be numpy array or numpy generic type.
+
+    Returns
+    -------
+    Any
+        JSON serializable object:
+        - For np.ndarray: returns a Python list
+        - For np.generic: returns a Python scalar
+
+    Raises
+    ------
+    TypeError
+        If the input object is not a numpy array or numpy generic type.
+    """
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.generic):
+        return obj.item()
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+
+@typechecked
 def polars_to_json(obj: Any) -> Any:
     """Convert Polars data types to JSON serializable format.
 
