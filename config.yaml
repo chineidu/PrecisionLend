@@ -79,6 +79,8 @@ general:
   test_size: 0.2
   current_size: 0.4 # For data profiling
   experiment_name: credit_pipeline
+  version: 0.1
+  secret_name: mlflow_secret
 
   model_selection:
     estimator_type: classifier
