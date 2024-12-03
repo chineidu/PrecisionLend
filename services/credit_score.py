@@ -71,13 +71,13 @@ class CreditRequestBody(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "person_age": 28,
+                    "person_age": 35,
                     "person_income": 72_000.00,
-                    "person_emp_exp": 2,
+                    "person_emp_exp": 6,
                     "loan_amnt": 25_000.00,
                     "loan_int_rate": 14.2,
                     "loan_percent_income": 0.28,
-                    "cb_person_cred_hist_length": 1,
+                    "cb_person_cred_hist_length": 3,
                     "person_gender": "male",
                     "person_education": "bachelor",
                     "person_home_ownership": "rent",
@@ -94,7 +94,7 @@ app = FastAPI(title="Credit Score API", version="1.0.0")
 
 @serve.deployment(
     name="credit_score_deployment",
-    num_replicas=2,
+    num_replicas="auto",  # enable autoscaling
     ray_actor_options={"num_cpus": 1, "num_gpus": 0},
 )
 @serve.ingress(app)
@@ -133,5 +133,5 @@ class CreditScoreDeployment:
             raise HTTPException(status_code=500, detail=str(e))
 
 
-serve_app = CreditScoreDeployment.bind()  # type: ignore
-# serve.run(serve_app, name="credit_score_deployment", route_prefix="/api/v1")
+credit_score_deployment = CreditScoreDeployment.bind()  # type: ignore
+# serve.run(credit_score_deployment, name="credit_score_deployment", route_prefix="/api/v1")

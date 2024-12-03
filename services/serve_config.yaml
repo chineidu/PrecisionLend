@@ -20,7 +20,7 @@ logging_config:
 applications:
   - name: credit_score_app
     route_prefix: /api/v1
-    import_path: services.credit_score:serve_app
+    import_path: services.credit_score:credit_score_deployment
     runtime_env: {}
 
     deployments:

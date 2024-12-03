@@ -23,5 +23,5 @@ def load_zenml_artifact(artifact_name: str) -> Any:
     return loaded_artifact
 
 
-if __name__ == "__main__":
-    get_mlflow_tracking_uri()
+# if __name__ == "__main__":
+#     get_mlflow_tracking_uri()

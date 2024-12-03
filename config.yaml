@@ -84,4 +84,4 @@ general:
 
   model_selection:
     estimator_type: classifier
-    estimator_name: RandomForestClassifier
+    estimator_name: GradientBoostingClassifier

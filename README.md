@@ -22,6 +22,8 @@ Machine Learning-Powered Loan Processing and Credit Scoring
           - [2.) Run ZenML with A Connected MLFlow Server](#2-run-zenml-with-a-connected-mlflow-server)
     - [ZenML Evidently Integration](#zenml-evidently-integration)
     - [ZenML Stack CLI Commands](#zenml-stack-cli-commands)
+  - [ML Services](#ml-services)
+    - [1.) Credit Score Prediction Service](#1-credit-score-prediction-service)
 
 ## Overview
 
@@ -422,3 +424,37 @@ zenml stack update -dv ${VALIDATOR_NAME}
 ### ZenML Stack CLI Commands
 
 - To display the help message for the `zenml stack --help` command:
+
+## ML Services
+
+- [Best Practices](https://docs.ray.io/en/latest/serve/production-guide/best-practices.html)
+
+### 1.) Credit Score Prediction Service
+
+- Use highly configurable serve `config files` for production deployments.
+
+```sh
+# From the root of the project
+export FILENAME="services.credit_score"
+export DEPLOYMENT_NAME="credit_score_deployment"
+export CONFIG_FILE_NAME="services/serve_config.yaml"
+
+# Create a serve config file
+serve build ${FILENAME}:${DEPLOYMENT_NAME} -o ${CONFIG_FILE_NAME}
+```
+
+- Update the serve config file with the correct host and port as per your requirements.
+
+- Use [serve deploy](https://docs.ray.io/en/latest/serve/advanced-guides/deploy-vm.html#deploy-on-vm) (especially for deployments on VMs) for production deployments.
+
+```sh
+# Start Ray on the head node
+ray start --head
+...
+
+# Deploy the Serve application on the head node using the config file
+serve deploy ${CONFIG_FILE_NAME}
+```
+
+- You can also deploy to a remote VM by following the steps [here](https://docs.ray.io/en/latest/serve/advanced-guides/deploy-vm.html#using-a-remote-cluster)
+- Add [autoscaling](https://docs.ray.io/en/latest/serve/autoscaling-guide.html) to your Serve deployment.
