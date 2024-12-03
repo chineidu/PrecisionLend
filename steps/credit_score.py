@@ -20,7 +20,6 @@ from zenml.config.retry_config import StepRetryConfig
 
 from src.data_eng.extraction import ingest_data
 from src.mlflow_utils import (
-    get_experiment_status,
     load_best_model,
 )
 from src.training import evaluate, train_model_with_cross_validation
@@ -403,26 +402,4 @@ def load_trained_model_with_mlflow(experiment_name: str) -> Annotated[Any, "esti
 
     except Exception as e:
         logger.warning(f"Error loading model, {e}")
-        raise
-
-
-@step(retry=STEP_RETRY_CONFIG)
-def get_mlflow_experiment_status() -> (
-    tuple[Annotated[str, "experiment_id"], Annotated[str, "run_id"]]
-):
-    try:
-        experiment_id, run_id = get_experiment_status(
-            experiment_name=CONFIG.general.experiment_name, metric="auc_score"
-        )
-        logger.info(f"Experiment ID: {experiment_id} | Run ID: {run_id}")
-
-        log_artifact_metadata(
-            artifact_name="experiment_id", metadata={"experiment_id": experiment_id}
-        )
-        log_artifact_metadata(artifact_name="run_id", metadata={"run_id": run_id})
-
-        return experiment_id, run_id
-
-    except Exception as e:
-        logger.warning(f"Error getting experiment id, {e}")
         raise

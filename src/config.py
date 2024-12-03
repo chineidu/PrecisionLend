@@ -11,12 +11,30 @@ SECRET_NAME = CONFIG.general.secret_name
 
 
 class Settings(BaseSettings):
-    """Application settings"""
+    """Application settings class for managing MLflow configuration and credentials.
 
-    MLFLOW_HOST: str = "0.0.0.0"
-    MLFLOW_PORT: int = 5500
+    Attributes
+    ----------
+    MLFLOW_HOST : str
+        The host address for MLflow server, defaults to "0.0.0.0"
+    MLFLOW_PORT : int
+        The port number for MLflow server, defaults to 5500
+    MLFLOW_BACKEND_STORE_URI : str
+        The URI for MLflow backend storage, defaults to SQLite database
+    MLFLOW_TRACKING_URI : str
+        The complete tracking URI for MLflow server
+    username : str | None
+        Optional username for authentication
+    password : str | None
+        Optional password for authentication
+    uri : str
+        The tracking URI, defaults to MLFLOW_TRACKING_URI
+    """
+
+    MLFLOW_HOST: str = "http://localhost"
+    MLFLOW_PORT: int = 5000
     MLFLOW_BACKEND_STORE_URI: str = "sqlite:///mlflow.db"
-    MLFLOW_TRACKING_URI: str = f"http://0.0.0.0:{MLFLOW_PORT}"
+    MLFLOW_TRACKING_URI: str = f"{MLFLOW_HOST}:{MLFLOW_PORT}"
 
     username: str | None = None
     password: str | None = None
@@ -24,6 +42,20 @@ class Settings(BaseSettings):
 
     @classmethod
     def load_settings(cls) -> "Settings":
+        """Load settings from ZenML secret store or create default settings.
+
+        Returns
+        -------
+        Settings
+            An instance of Settings class with loaded or default values
+
+        Raises
+        ------
+        RuntimeError
+            If there's an error accessing the secret store
+        ValueError
+            If there's an error parsing the secret values
+        """
         try:
             logger.info("Loading settings from the ZenML secret store.")
 
@@ -37,6 +69,15 @@ class Settings(BaseSettings):
         return settings
 
     def export(self) -> None:
+        """Export current settings to ZenML secret store.
+
+        Stores all non-None values as strings in the secret store.
+
+        Raises
+        ------
+        EntityExistsError
+            If the secret with the same name already exists in the store
+        """
         env_vars = settings.model_dump()
 
         for key, value in env_vars.items():
