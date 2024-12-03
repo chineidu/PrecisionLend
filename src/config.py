@@ -91,7 +91,7 @@ class Settings(BaseSettings):
 
         except EntityExistsError:
             logger.warning(
-                f"Secret scorep {SECRET_NAME!r} already exists. "
+                f"Secret {SECRET_NAME!r} already exists. "
                 f"Delete it manually by running `zenml secret delete {SECRET_NAME!r}` "
                 "and try again."
             )

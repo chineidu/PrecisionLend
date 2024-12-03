@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 import pandas as pd
 import polars as pl
 from sklearn.model_selection import train_test_split
-from zenml import step
+from zenml import log_artifact_metadata, step
 from zenml.steps.base_step import BaseStep
 from zenml.integrations.pandas.materializers.pandas_materializer import (
     PandasMaterializer,
@@ -99,6 +99,8 @@ def data_analyzer(report: str) -> Annotated[dict[str, Any], "result"]:
     """
     logger.info("Running Evidently analysis")
     result: dict[str, Any] = json.loads(report)["metrics"][0]["result"]
+
+    log_artifact_metadata(artifact_name="result", metadata=result)
 
     return result
 

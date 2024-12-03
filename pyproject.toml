@@ -70,6 +70,12 @@ shell = "zenml down"
 [tool.poe.tasks]
 # Pipeline Commands
 run-credit-score-training = "python run.py --no-cache --run-credit-score-training"
-run-credit-score-training-with-settings = """python run.py --no-cache --run-credit-score-training
---run-export-settings"""
+run-credit-score-training-with-settings = """
+                        python run.py --no-cache --run-credit-score-training
+                          --run-export-settings
+                          """
 run-data-report = "python run.py --no-cache --run-data-report"
+run-data-report-with-settings = """
+                        python run.py --no-cache --run-data-report
+                          --run-export-settings
+                          """
