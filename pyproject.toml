@@ -79,3 +79,7 @@ run-data-report-with-settings = """
                         python run.py --no-cache --run-data-report
                           --run-export-settings
                           """
+
+[tool.poe.tasks.print-env-vars]
+help = "Print Environment Variables"
+shell = "echo $POSTGRES_HOST "

@@ -1,0 +1,35 @@
+
+version: "3.9"
+
+services:
+  mlflow-db: # 1st service
+    image: postgres:17-bullseye
+    container_name: mlflow-backend-store # Also used as hostname
+    env_file: # Location of file(s) containing the env vars. Only accessed by the container.
+      - .env
+    volumes: # Persist the data volume
+      - postgresql-data:/var/lib/postgresql/data
+
+  mlflow-server: # 2nd service
+    image: mlflow-tracking-server
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile.mlflow
+      args:
+        MLFLOW_ARTIFACT_STORE: ${MLFLOW_ARTIFACT_STORE}
+    container_name: mlflow-tracking-server
+    ports:
+      - ${MLFLOW_PORT}:${MLFLOW_PORT}
+    depends_on:
+      - mlflow-db
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+      - artifact-store:/${MLFLOW_ARTIFACT_STORE} # Named volume
+    ipc: host
+
+# Named volumes ONLY!
+volumes:
+  postgresql-data:
+  artifact-store:

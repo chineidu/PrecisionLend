@@ -24,6 +24,8 @@ Machine Learning-Powered Loan Processing and Credit Scoring
     - [ZenML Stack CLI Commands](#zenml-stack-cli-commands)
   - [ML Services](#ml-services)
     - [1.) Credit Score Prediction Service](#1-credit-score-prediction-service)
+  - [Docker](#docker)
+    - [MLFlow Setup](#mlflow-setup)
 
 ## Overview
 
@@ -458,3 +460,28 @@ serve deploy ${CONFIG_FILE_NAME}
 
 - You can also deploy to a remote VM by following the steps [here](https://docs.ray.io/en/latest/serve/advanced-guides/deploy-vm.html#using-a-remote-cluster)
 - Add [autoscaling](https://docs.ray.io/en/latest/serve/autoscaling-guide.html) to your Serve deployment.
+
+## Docker
+
+### MLFlow Setup
+
+```text
+MLFLOW_HOST=0.0.0.0
+MLFLOW_PORT=5000
+# MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow.db
+MLFLOW_TRACKING_URI=http://$MLFLOW_HOST:$MLFLOW_PORT
+# Use PostgreSQL as backend store (Docker)
+MLFLOW_BACKEND_STORE_URI=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB
+
+export MLFLOW_HOST=mlflow-tracking-server
+export MLFLOW_PORT=5000
+export MLFLOW_TRACKING_URI=http://$MLFLOW_HOST:$MLFLOW_PORT
+export MLFLOW_BACKEND_STORE_URI=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB
+export MLFLOW_ARTIFACT_STORE=/mlflow-artifact-store
+
+export POSTGRES_HOST=mlflow-backend-store
+export POSTGRES_PORT=5430
+export POSTGRES_USER=mlflow
+export POSTGRES_PASSWORD=mlflow
+export POSTGRES_DB=mlflow_db
+```

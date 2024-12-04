@@ -1,0 +1,53 @@
+# Base image
+FROM python:3.11-slim
+
+ARG MLFLOW_ARTIFACT_STORE
+
+# Environment variables
+ENV \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:${PATH}" \
+    LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive \
+    LOCK_FILE_PATH="/opt/uv.lock.build"
+
+# Install system dependencies
+RUN apt-get -qq update \
+    && apt-get -qq -y install git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get -qq -y clean
+
+# Create directories
+RUN mkdir -p "${MLFLOW_ARTIFACT_STORE}"/app
+
+# Copy and set up scripts
+COPY ./docker/*.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/*.sh
+ENV PATH="/usr/local/bin:${PATH}"
+
+# Set up Python virtual environment and dependencies
+RUN pip install --no-cache-dir uv==0.5.5
+
+WORKDIR /app
+
+# Copy project files
+COPY ./pyproject.toml ./*.lock /app/
+
+# Create virtual environment and install dependencies
+RUN python -m venv "${VIRTUAL_ENV}" \
+    && . "${VIRTUAL_ENV}/bin/activate" \
+    && pip install --upgrade pip \
+    && uv pip install mlflow \
+    && uv sync \
+    && cp uv.lock "${LOCK_FILE_PATH}" \
+    && rm -rf "${HOME}/.cache/*"
+
+# Set up entrypoint
+USER root
+COPY ./docker/*.sh /
+RUN chmod +x /*.sh
+
+# Entrypoint to start the MLflow server
+CMD ["run-server.sh"]
