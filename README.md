@@ -480,7 +480,7 @@ export MLFLOW_BACKEND_STORE_URI=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$
 export MLFLOW_ARTIFACT_STORE=/mlflow-artifact-store
 
 export POSTGRES_HOST=mlflow-backend-store
-export POSTGRES_PORT=5430
+export POSTGRES_PORT=5432
 export POSTGRES_USER=mlflow
 export POSTGRES_PASSWORD=mlflow
 export POSTGRES_DB=mlflow_db

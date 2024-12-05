@@ -7,8 +7,18 @@ services:
     container_name: mlflow-backend-store # Also used as hostname
     env_file: # Location of file(s) containing the env vars. Only accessed by the container.
       - .env
+    ports:
+      - ${POSTGRES_PORT}:5432
     volumes: # Persist the data volume
       - postgresql-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
 
   mlflow-server: # 2nd service
     image: mlflow-tracking-server

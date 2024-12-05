@@ -1,7 +1,8 @@
 #!/bin/bash
+. .venv/bin/activate
+which python
 
-# Activate the virtual environment
-. /opt/venv/bin/activate
+# Start MLflow server
 mlflow server -h 0.0.0.0 \
     -p ${MLFLOW_PORT} \
     --backend-store-uri ${MLFLOW_BACKEND_STORE_URI} \

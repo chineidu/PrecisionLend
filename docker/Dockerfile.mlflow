@@ -1,4 +1,4 @@
-# Base image
+# Base Image
 FROM python:3.11-slim
 
 ARG MLFLOW_ARTIFACT_STORE
@@ -22,32 +22,25 @@ RUN apt-get -qq update \
 # Create directories
 RUN mkdir -p "${MLFLOW_ARTIFACT_STORE}"/app
 
-# Copy and set up scripts
-COPY ./docker/*.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/*.sh
-ENV PATH="/usr/local/bin:${PATH}"
-
 # Set up Python virtual environment and dependencies
 RUN pip install --no-cache-dir uv==0.5.5
 
 WORKDIR /app
 
 # Copy project files
-COPY ./pyproject.toml ./*.lock /app/
+COPY ./pyproject.toml ./*.lock ./docker /app/
 
 # Create virtual environment and install dependencies
-RUN python -m venv "${VIRTUAL_ENV}" \
-    && . "${VIRTUAL_ENV}/bin/activate" \
-    && pip install --upgrade pip \
-    && uv pip install mlflow \
-    && uv sync \
-    && cp uv.lock "${LOCK_FILE_PATH}" \
+RUN uv venv ${VIRTUAL_ENV} \
+    && . ${VIRTUAL_ENV}/bin/activate \
+    && uv pip compile pyproject.toml -o requirements.txt \
+    && uv pip install -r requirements.txt \
     && rm -rf "${HOME}/.cache/*"
 
 # Set up entrypoint
 USER root
-COPY ./docker/*.sh /
-RUN chmod +x /*.sh
+COPY ./docker/*.sh /app/docker/
+RUN chmod +x /app/docker/*.sh
 
-# Entrypoint to start the MLflow server
-CMD ["run-server.sh"]
+# Set the default command to run the MLflow server script
+CMD ["/app/docker/run-server.sh"]

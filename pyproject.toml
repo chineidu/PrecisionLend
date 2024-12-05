@@ -17,6 +17,7 @@ dependencies = [
   "poethepoet>=0.30.0",
   "polars==1.15",
   "pre-commit>=4.0.1",
+  "psycopg2-binary>=2.9.10",
   "ray[serve]>=2.39.0",
   "rich>=13.9.4",
   "scikit-learn>=1.5.2",
