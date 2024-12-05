@@ -11,9 +11,11 @@ ENV \
     LC_ALL=C.UTF-8 \
     LANG=C.UTF-8 \
     DEBIAN_FRONTEND=noninteractive \
-    LOCK_FILE_PATH="/opt/uv.lock.build"
+    LOCK_FILE_PATH="/opt/uv.lock.build" \
+    UV_HTTP_TIMEOUT=1000
 
 # Install system dependencies
+# Git is required for MLflow
 RUN apt-get -qq update \
     && apt-get -qq -y install git \
     && rm -rf /var/lib/apt/lists/* \
@@ -22,15 +24,16 @@ RUN apt-get -qq update \
 # Create directories
 RUN mkdir -p "${MLFLOW_ARTIFACT_STORE}"/app
 
-# Set up Python virtual environment and dependencies
+# Install uv (dependency manager)
 RUN pip install --no-cache-dir uv==0.5.5
 
+# Set working directory
 WORKDIR /app
 
 # Copy project files
 COPY ./pyproject.toml ./*.lock ./docker /app/
 
-# Create virtual environment and install dependencies
+# Create and activate virtual environment and install dependencies
 RUN uv venv ${VIRTUAL_ENV} \
     && . ${VIRTUAL_ENV}/bin/activate \
     && uv pip compile pyproject.toml -o requirements.txt \

@@ -26,6 +26,7 @@ Machine Learning-Powered Loan Processing and Credit Scoring
     - [1.) Credit Score Prediction Service](#1-credit-score-prediction-service)
   - [Docker](#docker)
     - [MLFlow Setup](#mlflow-setup)
+    - [Troubleshooting](#troubleshooting)
 
 ## Overview
 
@@ -465,23 +466,74 @@ serve deploy ${CONFIG_FILE_NAME}
 
 ### MLFlow Setup
 
-```text
-MLFLOW_HOST=0.0.0.0
-MLFLOW_PORT=5000
-# MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow.db
-MLFLOW_TRACKING_URI=http://$MLFLOW_HOST:$MLFLOW_PORT
-# Use PostgreSQL as backend store (Docker)
-MLFLOW_BACKEND_STORE_URI=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB
+- Dockerfile uses [UV](https://docs.astral.sh/uv/pip/environments/#python-environments) as the Python dependency manager.
+- Docker Compose
 
-export MLFLOW_HOST=mlflow-tracking-server
-export MLFLOW_PORT=5000
-export MLFLOW_TRACKING_URI=http://$MLFLOW_HOST:$MLFLOW_PORT
-export MLFLOW_BACKEND_STORE_URI=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB
-export MLFLOW_ARTIFACT_STORE=/mlflow-artifact-store
+```yaml
 
-export POSTGRES_HOST=mlflow-backend-store
-export POSTGRES_PORT=5432
-export POSTGRES_USER=mlflow
-export POSTGRES_PASSWORD=mlflow
-export POSTGRES_DB=mlflow_db
+version: "3.9"
+
+services:
+  mlflow-db: # 1st service
+    image: postgres:17-bullseye
+    container_name: mlflow-backend-store # Also used as hostname
+    env_file: # Location of file(s) containing the env vars. Only accessed by the container.
+      - .env
+    ports:
+      - 5432:5432
+    volumes: # Persist the data volume
+      - postgresql-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+
+  mlflow-server: # 2nd service
+    image: mlflow-tracking-server
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile.mlflow
+      args:
+        MLFLOW_ARTIFACT_STORE: ${MLFLOW_ARTIFACT_STORE}
+    container_name: mlflow-tracking-server
+    ports:
+      - ${MLFLOW_PORT}:${MLFLOW_PORT}
+    depends_on:
+      - mlflow-db
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+      - artifact-store:/${MLFLOW_ARTIFACT_STORE} # Named volume
+    ipc: host
+
+# Named volumes ONLY!
+volumes:
+  postgresql-data:
+  artifact-store:
+
+```
+
+### Troubleshooting
+
+```sh
+# List all containers
+docker ps -a
+# Stop all containers
+docker stop $(docker ps -a -q)
+# Remove stopped containers
+docker system prune -f
+
+# List all the Docker networks on your system
+docker network ls
+# Check if anything is bound to $PORT
+netstat -tuln | grep $PORT
+
+# Identify PID
+sudo lsof -i :$PORT
+sudo kill -9 [PID]
 ```
